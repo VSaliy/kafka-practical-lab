@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   kafka:
     image: confluentinc/cp-kafka:7.9.0
@@ -24,31 +22,59 @@ services:
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     volumes:
       - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - kafka-lab
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.9.0
     hostname: schema-registry
     container_name: schema-registry
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "8081:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - kafka-lab
 
   akhq:
     image: tchiotludo/akhq:latest
     hostname: akhq
     container_name: akhq
     depends_on:
-      - kafka
-      - schema-registry
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
     ports:
       - "8080:8080"
     volumes:
       - ./akhq/application.yml:/app/application.yml
+    networks:
+      - kafka-lab
+
+networks:
+  kafka-lab:
+    name: kafka-lab
+    driver: bridge
 
 volumes:
   kafka-data:
+    name: kafka-lab-data
+
