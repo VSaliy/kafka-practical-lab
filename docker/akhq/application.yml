@@ -1,0 +1,11 @@
+micronaut:
+  security:
+    enabled: false
+
+akhq:
+  connections:
+    local:
+      properties:
+        bootstrap.servers: "kafka:29092"
+      schema-registry:
+        url: "http://schema-registry:8081"
