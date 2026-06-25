@@ -54,7 +54,7 @@ services:
       - kafka-lab
 
   akhq:
-    image: tchiotludo/akhq:latest
+    image: tchiotludo/akhq:0.27.1
     hostname: akhq
     container_name: akhq
     depends_on:
