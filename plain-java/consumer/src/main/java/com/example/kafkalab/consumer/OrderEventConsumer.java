@@ -5,7 +5,9 @@ import com.example.kafkalab.common.serde.JsonSerde;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -66,21 +68,28 @@ public class OrderEventConsumer implements AutoCloseable {
 
     void processRecords(ConsumerRecords<String, String> records) {
         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        Set<TopicPartition> failedPartitions = new HashSet<>();
 
         for (ConsumerRecord<String, String> record : records) {
+            TopicPartition topicPartition = new TopicPartition(record.topic(), record.partition());
+            if (failedPartitions.contains(topicPartition)) {
+                log.warn("Skipping record at partition={} offset={} until earlier failed record is retried",
+                    record.partition(), record.offset());
+                continue;
+            }
+
             try {
                 OrderCreated order = deserialize(record);
                 process(order);
-                offsets.put(
-                    new TopicPartition(record.topic(), record.partition()),
-                    new OffsetAndMetadata(record.offset() + 1)
-                );
+                offsets.put(topicPartition, new OffsetAndMetadata(record.offset() + 1));
             } catch (ProcessingException e) {
                 log.error("Failed to process record at partition={} offset={}: {}",
                     record.partition(), record.offset(), e.getMessage());
+                failedPartitions.add(topicPartition);
             } catch (Exception e) {
                 log.error("Unexpected error processing record at partition={} offset={}",
                     record.partition(), record.offset(), e);
+                failedPartitions.add(topicPartition);
             }
         }
 

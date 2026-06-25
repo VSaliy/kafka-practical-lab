@@ -77,7 +77,7 @@ make consume
 |---|---|---|---|
 | Kafka (KRaft) | `confluentinc/cp-kafka:7.9.0` | `9092` | `localhost:9092` |
 | Schema Registry | `confluentinc/cp-schema-registry:7.9.0` | `8081` | `http://localhost:8081` |
-| AKHQ | `tchiotludo/akhq:latest` | `8080` | `http://localhost:8080` |
+| AKHQ | `tchiotludo/akhq:0.27.1` | `8080` | `http://localhost:8080` |
 
 All containers share the `kafka-lab` Docker bridge network. Other containers reach Kafka at `kafka:29092`.
 
@@ -112,6 +112,14 @@ docker compose -f docker/compose-single-broker.yaml up -d
 
 # Three-broker cluster (replication exercises)
 docker compose -f docker/compose-three-brokers.yaml up -d
+COMPOSE_FILE=docker/compose-three-brokers.yaml \
+  KAFKA_SERVICE=kafka1 \
+  BOOTSTRAP_SERVERS=localhost:9092 \
+  bash scripts/wait-for-kafka.sh
+COMPOSE_FILE=docker/compose-three-brokers.yaml \
+  KAFKA_SERVICE=kafka1 \
+  REPLICATION_FACTOR=3 \
+  bash scripts/create-topics.sh
 ```
 
 ---
@@ -125,6 +133,11 @@ make topics
 # Via AdminClient module directly
 ./mvnw -pl plain-java/admin-client exec:java \
   -Dexec.mainClass=com.example.kafkalab.admin.AdminClientMain
+
+# Three-broker replication
+./mvnw -pl plain-java/admin-client exec:java \
+  -Dexec.mainClass=com.example.kafkalab.admin.AdminClientMain \
+  '-Dexec.args=--replication-factor 3'
 
 # Via shell script (uses kafka-topics inside Docker)
 bash scripts/create-topics.sh
