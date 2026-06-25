@@ -31,13 +31,11 @@ public class ConsumerMain {
         ConsumerSettings settings = new ConsumerSettings(bootstrapServers, topic, groupId, processingDelayMs, failureRate);
         log.info("Starting consumer: bootstrap={}, topic={}, group={}", bootstrapServers, topic, groupId);
 
-        OrderEventConsumer consumer = new OrderEventConsumer(settings);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("Shutdown signal received");
-            consumer.shutdown();
-        }));
-
-        try {
+        try (OrderEventConsumer consumer = new OrderEventConsumer(settings)) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                log.info("Shutdown signal received");
+                consumer.shutdown();
+            }));
             consumer.run();
         } catch (Exception e) {
             log.error("Consumer failed", e);

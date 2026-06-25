@@ -25,6 +25,7 @@ public class OrderEventConsumer implements AutoCloseable {
     private final OrderProcessor processor;
     private final String topic;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public OrderEventConsumer(ConsumerSettings settings) {
         this.consumer = OrderConsumerFactory.create(settings.bootstrapServers(), settings.groupId());
@@ -55,8 +56,7 @@ public class OrderEventConsumer implements AutoCloseable {
             }
             log.info("Consumer shutdown requested");
         } finally {
-            consumer.close();
-            log.info("Consumer closed");
+            closeConsumer();
         }
     }
 
@@ -103,12 +103,23 @@ public class OrderEventConsumer implements AutoCloseable {
     }
 
     public void shutdown() {
-        running.set(false);
-        consumer.wakeup();
+        if (running.compareAndSet(true, false)) {
+            consumer.wakeup();
+        }
     }
 
     @Override
     public void close() {
-        shutdown();
+        if (!closed.get()) {
+            shutdown();
+            closeConsumer();
+        }
+    }
+
+    private void closeConsumer() {
+        if (closed.compareAndSet(false, true)) {
+            consumer.close();
+            log.info("Consumer closed");
+        }
     }
 }
