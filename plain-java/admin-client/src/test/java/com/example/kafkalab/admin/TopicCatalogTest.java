@@ -50,4 +50,11 @@ class TopicCatalogTest {
             .orElseThrow();
         assertThat(stats.configuration()).containsEntry("cleanup.policy", "compact");
     }
+
+    @Test
+    void shouldApplyRequestedReplicationFactor() {
+        assertThat(TopicCatalog.all((short) 3))
+            .extracting(TopicDefinition::replicationFactor)
+            .containsOnly((short) 3);
+    }
 }

@@ -21,20 +21,20 @@ All topics provisioned by the `plain-java/admin-client` module.
 
 ### Business topics (`orders.created.v1`, `inventory.*`, `payments.*`, `orders.completed.v1`, `orders.failed.v1`, `fraud.alerts.v1`)
 - **Partitions:** 3
-- **Replication factor:** 1 (single-broker dev), 3 (three-broker)
+- **Replication factor:** configured at provisioning time; default 1 for single-broker dev, use 3 for the three-broker cluster
 - **Retention:** 604800000 ms (7 days)
 - **Cleanup policy:** `delete`
 
 ### Dead-letter topic (`orders.created.v1-dlt`)
 - **Partitions:** 1
-- **Replication factor:** 1
+- **Replication factor:** configured at provisioning time; default 1 for single-broker dev, use 3 for the three-broker cluster
 - **Retention:** 2592000000 ms (30 days)
 - **Cleanup policy:** `delete`
 - **Purpose:** Long retention to allow investigation and replay of failed messages
 
 ### Statistics topic (`customer-order-statistics.v1`)
 - **Partitions:** 3
-- **Replication factor:** 1
+- **Replication factor:** configured at provisioning time; default 1 for single-broker dev, use 3 for the three-broker cluster
 - **Retention:** -1 (infinite, controlled by compaction)
 - **Cleanup policy:** `compact`
 - **Purpose:** Maintains latest per-customer statistics; compaction preserves the last value per key

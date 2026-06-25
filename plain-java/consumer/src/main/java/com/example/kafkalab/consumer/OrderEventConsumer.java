@@ -5,7 +5,9 @@ import com.example.kafkalab.common.serde.JsonSerde;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -25,6 +27,7 @@ public class OrderEventConsumer implements AutoCloseable {
     private final OrderProcessor processor;
     private final String topic;
     private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public OrderEventConsumer(ConsumerSettings settings) {
         this.consumer = OrderConsumerFactory.create(settings.bootstrapServers(), settings.groupId());
@@ -55,8 +58,7 @@ public class OrderEventConsumer implements AutoCloseable {
             }
             log.info("Consumer shutdown requested");
         } finally {
-            consumer.close();
-            log.info("Consumer closed");
+            closeConsumer();
         }
     }
 
@@ -66,21 +68,28 @@ public class OrderEventConsumer implements AutoCloseable {
 
     void processRecords(ConsumerRecords<String, String> records) {
         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        Set<TopicPartition> failedPartitions = new HashSet<>();
 
         for (ConsumerRecord<String, String> record : records) {
+            TopicPartition topicPartition = new TopicPartition(record.topic(), record.partition());
+            if (failedPartitions.contains(topicPartition)) {
+                log.warn("Skipping record at partition={} offset={} until earlier failed record is retried",
+                    record.partition(), record.offset());
+                continue;
+            }
+
             try {
                 OrderCreated order = deserialize(record);
                 process(order);
-                offsets.put(
-                    new TopicPartition(record.topic(), record.partition()),
-                    new OffsetAndMetadata(record.offset() + 1)
-                );
+                offsets.put(topicPartition, new OffsetAndMetadata(record.offset() + 1));
             } catch (ProcessingException e) {
                 log.error("Failed to process record at partition={} offset={}: {}",
                     record.partition(), record.offset(), e.getMessage());
+                failedPartitions.add(topicPartition);
             } catch (Exception e) {
                 log.error("Unexpected error processing record at partition={} offset={}",
                     record.partition(), record.offset(), e);
+                failedPartitions.add(topicPartition);
             }
         }
 
@@ -103,12 +112,23 @@ public class OrderEventConsumer implements AutoCloseable {
     }
 
     public void shutdown() {
-        running.set(false);
-        consumer.wakeup();
+        if (running.compareAndSet(true, false)) {
+            consumer.wakeup();
+        }
     }
 
     @Override
     public void close() {
-        shutdown();
+        if (!closed.get()) {
+            shutdown();
+            closeConsumer();
+        }
+    }
+
+    private void closeConsumer() {
+        if (closed.compareAndSet(false, true)) {
+            consumer.close();
+            log.info("Consumer closed");
+        }
     }
 }

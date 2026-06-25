@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 BOOTSTRAP_SERVERS="${BOOTSTRAP_SERVERS:-localhost:9092}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker/compose.yaml}"
+KAFKA_SERVICE="${KAFKA_SERVICE:-kafka}"
 TIMEOUT="${TIMEOUT:-60}"
 echo "Waiting for Kafka at ${BOOTSTRAP_SERVERS} (timeout: ${TIMEOUT}s)..."
 end=$((SECONDS + TIMEOUT))
 while [ $SECONDS -lt $end ]; do
-  if docker compose -f docker/compose.yaml exec -T kafka kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+  if docker compose -f "${COMPOSE_FILE}" exec -T "${KAFKA_SERVICE}" \
+    kafka-topics --bootstrap-server "${BOOTSTRAP_SERVERS}" --list > /dev/null 2>&1; then
     echo "Kafka is ready."
     exit 0
   fi
