@@ -7,8 +7,11 @@ JAVA_HOME ?= /usr/lib/jvm/temurin-21-jdk-amd64
 MVN = JAVA_HOME=$(JAVA_HOME) ./mvnw --batch-mode
 endif
 COMPOSE_FILE ?= docker/compose.yaml
+K6_IMAGE ?= kafka-practical-lab/k6-kafka:local
+K6_DOCKER_NETWORK ?= kafka-lab
+K6_KAFKA_BROKERS ?= kafka:29092
 
-.PHONY: help clean compile build test verify up down destroy reset logs topics produce consume admin groups
+.PHONY: help clean compile build test verify up down destroy reset logs topics produce consume transactional admin groups load-k6-build load-k6
 
 help:
 	@echo "Available targets:"
@@ -25,7 +28,9 @@ help:
 	@echo "  make admin     - Run topic provisioner"
 	@echo "  make produce   - Produce sample order events"
 	@echo "  make consume   - Run the sample consumer"
+	@echo "  make transactional - Run the transactional processor"
 	@echo "  make groups    - Inspect consumer groups"
+	@echo "  make load-k6   - Run k6 Kafka producer load test"
 
 clean:
 	$(MVN) clean
@@ -40,6 +45,12 @@ test:
 
 verify:
 	$(MVN) verify -DskipITs
+
+load-k6-build:
+	docker build -f load-tests/k6/Dockerfile -t $(K6_IMAGE) load-tests/k6
+
+load-k6:
+	docker run --rm --network $(K6_DOCKER_NETWORK) -e KAFKA_BROKERS=$(K6_KAFKA_BROKERS) -e KAFKA_TOPIC=$(KAFKA_TOPIC) -e K6_RATE=$(K6_RATE) -e K6_BATCH_SIZE=$(K6_BATCH_SIZE) -e K6_DURATION=$(K6_DURATION) -e K6_PRE_ALLOCATED_VUS=$(K6_PRE_ALLOCATED_VUS) -e K6_MAX_VUS=$(K6_MAX_VUS) -e K6_CUSTOMER_COUNT=$(K6_CUSTOMER_COUNT) $(K6_IMAGE) run /scripts/orders-producer.js
 
 up:
 	docker compose -f $(COMPOSE_FILE) up -d
@@ -66,6 +77,9 @@ produce:
 
 consume:
 	$(MVN) -pl plain-java/consumer exec:java -Dexec.mainClass=com.example.kafkalab.consumer.ConsumerMain
+
+transactional:
+	$(MVN) -pl plain-java/transactional-processor exec:java -Dexec.mainClass=com.example.kafkalab.transactional.TransactionalProcessorMain
 
 groups:
 	./scripts/inspect-consumer-groups.sh

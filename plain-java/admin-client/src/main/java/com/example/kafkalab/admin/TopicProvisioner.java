@@ -3,6 +3,7 @@ package com.example.kafkalab.admin;
 import com.example.kafkalab.common.model.TopicDefinition;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -19,6 +20,7 @@ import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.TopicExistsException;
 import org.slf4j.Logger;
@@ -139,12 +141,29 @@ public class TopicProvisioner {
     }
 
     private Map<ConfigResource, Config> describeTopicConfigs(AdminClient adminClient, List<String> topicNames)
-        throws ExecutionException, InterruptedException {
+        throws InterruptedException {
         List<ConfigResource> resources = topicNames.stream()
             .map(TopicProvisioner::topicConfigResource)
             .toList();
 
-        return adminClient.describeConfigs(resources).all().get();
+        Map<ConfigResource, Config> configs = new HashMap<>();
+        Map<ConfigResource, KafkaFuture<Config>> futures = adminClient.describeConfigs(resources).values();
+
+        for (ConfigResource resource : resources) {
+            try {
+                KafkaFuture<Config> future = futures.get(resource);
+                if (future == null) {
+                    log.warn("Topic {} configuration description was not returned", resource.name());
+                    continue;
+                }
+                configs.put(resource, future.get());
+            } catch (ExecutionException e) {
+                log.warn("Topic {} configuration could not be described: {}",
+                    resource.name(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+            }
+        }
+
+        return configs;
     }
 
     static List<String> compatibilityWarnings(

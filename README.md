@@ -250,6 +250,7 @@ DESTROY_VOLUMES=true bash scripts/reset-environment.sh --destroy
 | `make verify` | Full build + unit + integration tests |
 | `make produce` | Run the plain-java producer (10 orders) |
 | `make consume` | Run the plain-java consumer |
+| `make transactional` | Run the transactional processor |
 | `make logs` | Tail Docker logs |
 
 ---
@@ -264,12 +265,12 @@ DESTROY_VOLUMES=true bash scripts/reset-environment.sh --destroy
 | `plain-java/producer` | Idempotent `KafkaProducer<String,String>` with headers and async callbacks |
 | `plain-java/consumer` | Manual-commit `KafkaConsumer<String,String>` with graceful shutdown |
 | `plain-java/admin-client` | `TopicProvisioner` using Kafka AdminClient; provisions all 10 topics |
+| `plain-java/transactional-processor` | Exactly-once read-process-write with Kafka transactions |
 
 ### Planned (placeholder modules)
 
 | Module | Intended purpose |
 |---|---|
-| `plain-java/transactional-processor` | Exactly-once read-process-write with Kafka transactions |
 | `avro-clients/avro-producer` | Produce `OrderCreated` using `KafkaAvroSerializer` and Schema Registry |
 | `avro-clients/specific-consumer` | Consume with generated `SpecificRecord` classes |
 | `avro-clients/generic-consumer` | Consume with `GenericRecord` — no generated code needed |
@@ -311,10 +312,11 @@ Follow the exercises in this order:
 - [x] `plain-java/producer` — idempotent JSON producer with headers
 - [x] `plain-java/consumer` — manual-commit consumer with graceful shutdown
 - [x] `plain-java/admin-client` — `TopicProvisioner` with safety guarantees
+- [x] `plain-java/transactional-processor` — exactly-once Kafka-to-Kafka transactions
 - [x] Docker Compose (single-broker, three-broker)
 - [x] Schema Registry and AKHQ
 - [x] Bash scripts (wait, create-topics, produce, inspect, reset)
-- [x] Unit tests (39 tests, all green)
+- [x] Unit tests (50 tests, all green)
 - [x] `TopicProvisionerIT` integration test (Testcontainers)
 - [x] GitHub Actions CI (`build.yml`)
 - [x] Documentation (architecture, delivery semantics, local environment, schema evolution, topic catalog)
@@ -324,7 +326,6 @@ Follow the exercises in this order:
 
 ### 🔲 Planned
 
-- [ ] `plain-java/transactional-processor` — exactly-once transactions
 - [ ] `avro-clients/` — Avro serialisation with Schema Registry
 - [ ] `spring-services/` — Spring Boot microservices
 - [ ] `streams/` — Kafka Streams topologies
